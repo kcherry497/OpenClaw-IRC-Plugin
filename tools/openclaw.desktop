@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Name=OpenClaw
+Comment=OpenClaw Dashboard
+Exec=%INSTALL_PATH%/openclaw-tunnel.sh
+Icon=%INSTALL_PATH%/openclaw-icon.png
+Type=Application
+Categories=Development;Utility;
+StartupNotify=true
+Terminal=false

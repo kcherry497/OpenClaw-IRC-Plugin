@@ -1,0 +1,42 @@
+# OpenClaw IRC Plugin Configuration Example
+# Copy this file to config.yaml and edit with your settings
+# IMPORTANT: Never commit config.yaml to version control
+
+irc:
+  # IRC server settings
+  server: irc.libera.chat
+  port: 6697
+  ssl: true
+
+  # Bot identity
+  nickname: openclaw
+  username: openclaw
+  realname: OpenClaw IRC Agent
+
+  # SASL authentication (recommended)
+  sasl:
+    username: your-registered-nick
+    password: your-nickserv-password
+
+  # Channels to join on connect
+  channels:
+    - "#your-channel"
+
+  # Direct message policy
+  # Options: disabled, pairing, open
+  dm:
+    policy: pairing
+    allowFrom:
+      - trusted-nick-1
+      - trusted-nick-2
+
+  # Group/channel policy
+  # Options: allowlist, denylist, all
+  groupPolicy: allowlist
+
+  # Per-channel settings
+  groups:
+    "#your-channel":
+      # Use ["*"] to allow all users, or list specific nicks
+      users:
+        - "*"
