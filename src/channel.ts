@@ -4,6 +4,7 @@ import {
   type ChannelPlugin,
 } from "openclaw/plugin-sdk";
 import { spawn } from "child_process";
+import { randomUUID } from "crypto";
 
 import { type ResolvedIrcAccount, type Logger } from "./types.js";
 import { getRuntimeSafe } from "./runtime.js";
@@ -161,10 +162,12 @@ function resolveIrcAccount(params: { cfg: unknown; accountId?: string }): Resolv
         realname?: string;
         sasl?: { username: string; password: string };
         nickservPassword?: string;
+        allowInsecureNickServ?: boolean;
         channels?: string[];
         dm?: { policy?: string; allowFrom?: string[] };
         groupPolicy?: string;
         groups?: Record<string, { users: string[] }>;
+        rateLimit?: { maxRequests?: number; windowMs?: number };
         accounts?: Record<string, unknown>;
       };
     };
@@ -185,10 +188,18 @@ function resolveIrcAccount(params: { cfg: unknown; accountId?: string }): Resolv
   const realname = accountConfig?.realname ?? "OpenClaw IRC Agent";
   const sasl = accountConfig?.sasl;
   const nickservPassword = accountConfig?.nickservPassword;
+  const allowInsecureNickServ = accountConfig?.allowInsecureNickServ ?? false;
   const channels = accountConfig?.channels ?? [];
   const dm = accountConfig?.dm ?? { policy: "pairing", allowFrom: [] };
   const groupPolicy = accountConfig?.groupPolicy ?? "allowlist";
   const groups = accountConfig?.groups ?? {};
+  const rawRateLimit = accountConfig?.rateLimit;
+  const rateLimit = rawRateLimit
+    ? {
+        maxRequests: rawRateLimit.maxRequests ?? 5,
+        windowMs: rawRateLimit.windowMs ?? 60000,
+      }
+    : undefined;
 
   const configured = Boolean(server?.trim());
 
@@ -207,6 +218,7 @@ function resolveIrcAccount(params: { cfg: unknown; accountId?: string }): Resolv
       realname,
       sasl,
       nickservPassword,
+      allowInsecureNickServ,
       channels,
       dm: {
         policy: (dm.policy as "open" | "pairing" | "disabled") ?? "pairing",
@@ -214,6 +226,7 @@ function resolveIrcAccount(params: { cfg: unknown; accountId?: string }): Resolv
       },
       groupPolicy: (groupPolicy as "allowlist" | "denylist" | "all") ?? "allowlist",
       groups,
+      rateLimit,
     },
   };
 }
@@ -439,12 +452,20 @@ export const ircPlugin: ChannelPlugin<ResolvedIrcAccount> = {
             log
           );
         } catch (err) {
-          const errorMessage = err instanceof Error ? err.message : String(err);
-          log?.error(`[${account.accountId}] Failed to handle inbound message: ${errorMessage}`);
+          // Generate a short error reference ID for correlation
+          const errorId = randomUUID().slice(0, 8);
 
-          // Send error message back to IRC
+          // Log full error details server-side (including stack trace if available)
+          const errorMessage = err instanceof Error ? err.message : String(err);
+          const errorStack = err instanceof Error ? err.stack : undefined;
+          log?.error(`[${account.accountId}] [${errorId}] Failed to handle inbound message from ${message.senderId}: ${errorMessage}`);
+          if (errorStack) {
+            log?.error(`[${account.accountId}] [${errorId}] Stack trace: ${errorStack}`);
+          }
+
+          // Send only generic error message to IRC (no internal details)
           try {
-            await message.reply(`Error: ${errorMessage}`);
+            await message.reply(`An error occurred while processing your request (ref: ${errorId})`);
           } catch {
             // Ignore send errors
           }

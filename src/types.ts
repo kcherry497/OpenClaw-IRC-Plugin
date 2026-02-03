@@ -22,6 +22,13 @@ export interface IrcGroupConfig {
   users: string[];
 }
 
+export interface IrcRateLimitConfig {
+  /** Maximum requests per window (default: 5) */
+  maxRequests: number;
+  /** Window duration in milliseconds (default: 60000) */
+  windowMs: number;
+}
+
 export interface IrcAccountConfig {
   enabled: boolean;
   server: string;
@@ -32,6 +39,8 @@ export interface IrcAccountConfig {
   realname: string;
   sasl?: IrcSaslConfig;
   nickservPassword?: string;
+  /** Allow insecure NickServ authentication (default: false) */
+  allowInsecureNickServ?: boolean;
   channels: string[];
   dm: {
     policy: "open" | "pairing" | "disabled";
@@ -39,6 +48,8 @@ export interface IrcAccountConfig {
   };
   groupPolicy: "allowlist" | "denylist" | "all";
   groups: Record<string, IrcGroupConfig>;
+  /** Rate limiting configuration */
+  rateLimit?: IrcRateLimitConfig;
 }
 
 export interface ResolvedIrcAccount {
@@ -100,6 +111,7 @@ export const IrcConfigSchema = z.object({
     .optional()
     .describe("SASL PLAIN authentication credentials"),
   nickservPassword: z.string().optional().describe("NickServ password (fallback if no SASL)"),
+  allowInsecureNickServ: z.boolean().default(false).describe("Allow insecure NickServ authentication"),
   channels: z.array(z.string().startsWith("#")).default([]).describe("Channels to auto-join"),
   dm: z
     .object({
@@ -110,4 +122,11 @@ export const IrcConfigSchema = z.object({
     .describe("Direct message policy"),
   groupPolicy: z.enum(["allowlist", "denylist", "all"]).default("allowlist"),
   groups: z.record(z.string(), z.object({ users: z.array(z.string()).default(["*"]) })).default({}),
+  rateLimit: z
+    .object({
+      maxRequests: z.number().int().min(1).default(5).describe("Maximum requests per window"),
+      windowMs: z.number().int().min(1000).default(60000).describe("Window duration in milliseconds"),
+    })
+    .optional()
+    .describe("Rate limiting configuration"),
 });

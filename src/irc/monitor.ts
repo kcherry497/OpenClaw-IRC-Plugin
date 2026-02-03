@@ -2,6 +2,8 @@ import type { PrivmsgEvent } from "irc-framework";
 import type { IrcClientWrapper, InboundMessage, ChatType, Logger } from "../types.js";
 import { isChannel, extractMention, sanitizeMessage, isValidMessageContent } from "./normalize.js";
 import { sendMessageIrc } from "./send.js";
+import { isAuthorized } from "./auth.js";
+import { isRateLimited } from "./ratelimit.js";
 
 export type MessageHandler = (message: InboundMessage) => Promise<void>;
 
@@ -34,6 +36,26 @@ export function createMessageHandler(
     // Validate message content
     if (!isValidMessageContent(sanitized.text)) {
       log?.debug?.(`[${client.accountId}] Rejecting invalid message from ${nick}`);
+      return;
+    }
+
+    // Authorization check - verify user is allowed to send messages
+    const authResult = isAuthorized(nick, target, client.config, log);
+    if (!authResult.authorized) {
+      // Silently ignore unauthorized messages (don't reveal bot presence)
+      log?.debug?.(`[${client.accountId}] Unauthorized message from ${nick} to ${target}: ${authResult.reason}`);
+      return;
+    }
+
+    // Rate limiting check - prevent abuse
+    const rateLimitConfig = client.config.rateLimit ?? { maxRequests: 5, windowMs: 60000 };
+    const rateLimitResult = isRateLimited(nick, rateLimitConfig, log);
+    if (rateLimitResult.limited) {
+      if (rateLimitResult.shouldNotify) {
+        // Only notify once per rate limit window
+        const replyTarget = isChannel(target) ? target : nick;
+        await sendMessageIrc(client, replyTarget, "Rate limited. Please wait before sending more messages.", log);
+      }
       return;
     }
 

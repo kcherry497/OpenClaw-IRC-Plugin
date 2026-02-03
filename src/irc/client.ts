@@ -121,12 +121,20 @@ export function createIrcClient(
         };
         log?.info(`[${accountId}] Using SASL authentication for ${config.sasl.username}`);
       } else if (config.nickservPassword) {
-        // NickServ fallback - LOG SECURITY WARNING
-        log?.warn(
-          `[${accountId}] WARNING: Using NickServ authentication is insecure. ` +
-          `The IDENTIFY command is sent as plain text and may be logged by the IRC server. ` +
-          `Please migrate to SASL authentication for better security.`
-        );
+        // NickServ fallback requires explicit opt-in due to security concerns
+        if (!config.allowInsecureNickServ) {
+          log?.error(
+            `[${accountId}] NickServ authentication is configured but 'allowInsecureNickServ' is not enabled. ` +
+            `NickServ sends passwords as plain text which may be logged by the IRC server. ` +
+            `Either migrate to SASL authentication (recommended) or set 'allowInsecureNickServ: true' to proceed.`
+          );
+        } else {
+          log?.warn(
+            `[${accountId}] WARNING: Using NickServ authentication is insecure. ` +
+            `The IDENTIFY command is sent as plain text and may be logged by the IRC server. ` +
+            `Please migrate to SASL authentication for better security.`
+          );
+        }
       }
 
       let resolved = false;
@@ -140,9 +148,10 @@ export function createIrcClient(
 
         log?.info(`[${accountId}] Registered as ${state.nickname}`);
 
-        // NickServ authentication fallback (with security warning already logged)
-        if (config.nickservPassword && !config.sasl) {
+        // NickServ authentication fallback (only if explicitly opted in)
+        if (config.nickservPassword && !config.sasl && config.allowInsecureNickServ) {
           // Note: This is inherently insecure - password sent in plain text
+          // User has explicitly opted in via allowInsecureNickServ config
           client.say("NickServ", `IDENTIFY ${config.nickservPassword}`);
         }
 
