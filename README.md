@@ -133,6 +133,10 @@ Contributions welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first.
 
 MIT License - see [LICENSE](LICENSE)
 
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=kcherry/OpenClaw-IRC-Plugin&type=Date)](https://star-history.com/#kcherry/OpenClaw-IRC-Plugin&Date)
+
 ## Links
 
 - [OpenClaw Project](https://github.com/openclaw/openclaw)
